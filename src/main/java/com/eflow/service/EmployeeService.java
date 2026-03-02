@@ -169,46 +169,96 @@ public class EmployeeService {
         employeeRepository.delete(emp);
     }
 
-    /** Xoá toàn bộ dữ liệu cũ và import lại từ danh sách DTO (dùng sau Excel parse) */
+    /**
+     * Upsert danh sách nhân viên từ file Excel:
+     * - Nếu ID đã tồn tại → update thông tin (giữ nguyên dữ liệu thủ công không có trong file)
+     * - Nếu ID chưa tồn tại → insert mới
+     * - Nhân viên không có trong file → KHÔNG xoá
+     * - Projects của từng nhân viên trong file → upsert tương tự
+     */
     @Transactional
     public void bulkImport(List<EmployeeDTO> dtos) {
         if (dtos == null) throw new IllegalArgumentException("Danh sách nhân viên không được null");
-        // 1. Xoá dữ liệu cũ (projects trước vì có FK)
-        projectRepository.deleteAllInBatch();
-        employeeRepository.deleteAllInBatch();
 
-        // 2. Lưu nhân viên
-        List<Employee> employees = dtos.stream()
-                .map(dto -> {
-                    Employee e = toEntity(dto);
-                    e.setLevel(dto.getLevel());
-                    e.setProjects(new ArrayList<>());
-                    return e;
-                })
-                .collect(Collectors.toList());
-        employeeRepository.saveAll(employees);
+        // ── 1. Upsert Employees ──────────────────────────────────────────
+        Set<String> incomingIds = dtos.stream()
+                .map(EmployeeDTO::getId)
+                .filter(id -> id != null && !id.isBlank())
+                .collect(Collectors.toSet());
 
-        // 3. Lưu projects
-        List<Project> projects = new ArrayList<>();
+        // Load tất cả employee đang có trong DB (1 lần duy nhất)
+        Map<String, Employee> existingMap = employeeRepository.findAllById(incomingIds)
+                .stream().collect(Collectors.toMap(Employee::getId, e -> e));
+
+        List<Employee> toSave = new ArrayList<>();
+        for (EmployeeDTO dto : dtos) {
+            if (dto.getId() == null || dto.getId().isBlank()) continue;
+
+            Employee emp = existingMap.get(dto.getId());
+            if (emp != null) {
+                // UPDATE: chỉ ghi đè các field có trong file
+                emp.setName(dto.getName());
+                emp.setPosition(dto.getPosition());
+                emp.setDepartment(dto.getDepartment());
+                emp.setEmail(dto.getEmail());
+                emp.setPhone(dto.getPhone());
+                emp.setManagerId(dto.getManagerId());
+                emp.setAvatar(dto.getAvatar());
+                emp.setJoinDate(dto.getJoinDate());
+                emp.setLevel(dto.getLevel() != null ? dto.getLevel() : computeLevel(dto.getManagerId()));
+            } else {
+                // INSERT: tạo mới
+                emp = toEntity(dto);
+                emp.setLevel(dto.getLevel() != null ? dto.getLevel() : computeLevel(dto.getManagerId()));
+                emp.setProjects(new ArrayList<>());
+            }
+            toSave.add(emp);
+        }
+        employeeRepository.saveAll(toSave);
+
+        // ── 2. Upsert Projects ───────────────────────────────────────────
         for (EmployeeDTO dto : dtos) {
             if (dto.getProjects() == null || dto.getProjects().isEmpty()) continue;
             Employee emp = employeeRepository.findById(dto.getId()).orElse(null);
             if (emp == null) continue;
+
+            // Lấy các project ID từ file
+            Set<String> incomingProjectIds = dto.getProjects().stream()
+                    .map(ProjectDTO::getId)
+                    .filter(id -> id != null && !id.isBlank())
+                    .collect(Collectors.toSet());
+
+            Map<String, Project> existingProjects = projectRepository.findAllById(incomingProjectIds)
+                    .stream().collect(Collectors.toMap(Project::getId, p -> p));
+
+            List<Project> projectsToSave = new ArrayList<>();
             for (ProjectDTO pdto : dto.getProjects()) {
                 if (pdto.getId() == null || pdto.getId().isBlank()) continue;
-                Project p = Project.builder()
-                        .id(pdto.getId())
-                        .employee(emp)
-                        .name(pdto.getName())
-                        .role(pdto.getRole() != null ? pdto.getRole() : "")
-                        .startDate(pdto.getStartDate())
-                        .endDate(pdto.getEndDate())
-                        .status(pdto.getStatus() != null ? pdto.getStatus() : Project.ProjectStatus.active)
-                        .build();
-                projects.add(p);
+
+                Project p = existingProjects.get(pdto.getId());
+                if (p != null) {
+                    // UPDATE project
+                    p.setName(pdto.getName());
+                    p.setRole(pdto.getRole() != null ? pdto.getRole() : p.getRole());
+                    p.setStartDate(pdto.getStartDate());
+                    p.setEndDate(pdto.getEndDate());
+                    p.setStatus(pdto.getStatus() != null ? pdto.getStatus() : p.getStatus());
+                } else {
+                    // INSERT project
+                    p = Project.builder()
+                            .id(pdto.getId())
+                            .employee(emp)
+                            .name(pdto.getName())
+                            .role(pdto.getRole() != null ? pdto.getRole() : "")
+                            .startDate(pdto.getStartDate())
+                            .endDate(pdto.getEndDate())
+                            .status(pdto.getStatus() != null ? pdto.getStatus() : Project.ProjectStatus.active)
+                            .build();
+                }
+                projectsToSave.add(p);
             }
+            projectRepository.saveAll(projectsToSave);
         }
-        projectRepository.saveAll(projects);
     }
 
     // ─────────────────────────────────────────────
