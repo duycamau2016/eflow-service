@@ -205,11 +205,11 @@ public class EmployeeService {
                 emp.setManagerId(dto.getManagerId());
                 emp.setAvatar(dto.getAvatar());
                 emp.setJoinDate(dto.getJoinDate());
-                emp.setLevel(dto.getLevel() != null ? dto.getLevel() : computeLevel(dto.getManagerId()));
+                emp.setLevel(dto.getLevel() > 0 ? dto.getLevel() : computeLevel(dto.getManagerId()));
             } else {
                 // INSERT: tạo mới
                 emp = toEntity(dto);
-                emp.setLevel(dto.getLevel() != null ? dto.getLevel() : computeLevel(dto.getManagerId()));
+                emp.setLevel(dto.getLevel() > 0 ? dto.getLevel() : computeLevel(dto.getManagerId()));
                 emp.setProjects(new ArrayList<>());
             }
             toSave.add(emp);
