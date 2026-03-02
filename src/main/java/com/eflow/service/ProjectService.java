@@ -157,6 +157,22 @@ public class ProjectService {
         projectRepository.saveAll(projects);
     }
 
+    /**
+     * Cập nhật trạng thái dự án độc lập – áp dụng cho TẤT CẢ assignment cùng tên.
+     * Trạng thái dự án là thuộc tính của dự án, không phải của từng thành viên.
+     */
+    @Transactional
+    public void updateProjectStatus(String name, ProjectStatus status) {
+        requireNotBlank(name, "name");
+        if (status == null) throw new IllegalArgumentException("Tham số 'status' không được null");
+        List<Project> projects = projectRepository.findByNameIgnoreCase(name);
+        if (projects.isEmpty()) {
+            throw new ResourceNotFoundException("Dự án", "name", name);
+        }
+        projects.forEach(p -> p.setStatus(status));
+        projectRepository.saveAll(projects);
+    }
+
     // ─────────────────────────────────────────────
     //  HELPERS
     // ─────────────────────────────────────────────

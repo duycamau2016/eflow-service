@@ -134,6 +134,15 @@ public class ProjectController {
         return ResponseEntity.ok(ApiResponse.ok("Đổi tên dự án thành công", null));
     }
 
+    /** PATCH /api/projects/by-name/{name}/status?status= - cập nhật trạng thái dự án độc lập */
+    @PatchMapping("/by-name/{name}/status")
+    public ResponseEntity<ApiResponse<Void>> updateProjectStatus(
+            @PathVariable String name,
+            @RequestParam ProjectStatus status) {
+        projectService.updateProjectStatus(name, status);
+        return ResponseEntity.ok(ApiResponse.ok("Cập nhật trạng thái dự án thành công", null));
+    }
+
     // ─────────────────────────────────────────────
     //  DELETE
     // ─────────────────────────────────────────────
