@@ -1,6 +1,5 @@
 package com.eflow.dto;
 
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
@@ -28,7 +27,6 @@ public class EmployeeDTO {
     @NotBlank(message = "Phòng ban không được để trống")
     private String department;
 
-    @Email(message = "Email không hợp lệ")
     private String email;
 
     private String phone;

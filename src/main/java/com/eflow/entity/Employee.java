@@ -1,7 +1,6 @@
 package com.eflow.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
@@ -47,7 +46,6 @@ public class Employee {
     @Column(name = "department", nullable = false)
     private String department;
 
-    @Email(message = "Email không hợp lệ")
     @Column(name = "email", unique = true)
     private String email;
 
