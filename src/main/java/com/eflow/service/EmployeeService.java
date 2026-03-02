@@ -37,6 +37,7 @@ public class EmployeeService {
 
     /** Lấy nhân viên theo ID kèm danh sách dự án */
     public EmployeeDTO findById(String id) {
+        requireNotBlank(id, "id");
         Employee emp = employeeRepository.findByIdWithProjects(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Nhân viên", "id", id));
         return toDTO(emp, true);
@@ -44,6 +45,7 @@ public class EmployeeService {
 
     /** Tìm kiếm nhân viên theo từ khoá (tên / chức vụ / phòng ban) */
     public List<EmployeeDTO> search(String keyword) {
+        requireNotBlank(keyword, "keyword");
         return employeeRepository.searchByKeyword(keyword).stream()
                 .map(e -> toDTO(e, false))
                 .collect(Collectors.toList());
@@ -51,6 +53,7 @@ public class EmployeeService {
 
     /** Lấy nhân viên theo phòng ban */
     public List<EmployeeDTO> findByDepartment(String department) {
+        requireNotBlank(department, "department");
         return employeeRepository.findByDepartmentIgnoreCase(department).stream()
                 .map(e -> toDTO(e, false))
                 .collect(Collectors.toList());
@@ -58,6 +61,7 @@ public class EmployeeService {
 
     /** Lấy danh sách nhân viên cấp dưới trực tiếp */
     public List<EmployeeDTO> findSubordinates(String managerId) {
+        requireNotBlank(managerId, "managerId");
         // validate manager exists
         employeeRepository.findById(managerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Nhân viên", "id", managerId));
@@ -98,6 +102,7 @@ public class EmployeeService {
     /** Tạo nhân viên mới */
     @Transactional
     public EmployeeDTO create(EmployeeDTO dto) {
+        if (dto == null) throw new IllegalArgumentException("Dữ liệu nhân viên không được null");
         if (dto.getEmail() != null && employeeRepository.existsByEmail(dto.getEmail())) {
             throw new DuplicateResourceException("Email '" + dto.getEmail() + "' đã tồn tại");
         }
@@ -120,6 +125,8 @@ public class EmployeeService {
     /** Cập nhật thông tin nhân viên */
     @Transactional
     public EmployeeDTO update(String id, EmployeeDTO dto) {
+        requireNotBlank(id, "id");
+        if (dto == null) throw new IllegalArgumentException("Dữ liệu nhân viên không được null");
         Employee existing = employeeRepository.findByIdWithProjects(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Nhân viên", "id", id));
 
@@ -150,6 +157,7 @@ public class EmployeeService {
     /** Xoá nhân viên */
     @Transactional
     public void delete(String id) {
+        requireNotBlank(id, "id");
         Employee emp = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Nhân viên", "id", id));
 
@@ -164,6 +172,7 @@ public class EmployeeService {
     /** Xoá toàn bộ dữ liệu cũ và import lại từ danh sách DTO (dùng sau Excel parse) */
     @Transactional
     public void bulkImport(List<EmployeeDTO> dtos) {
+        if (dtos == null) throw new IllegalArgumentException("Danh sách nhân viên không được null");
         // 1. Xoá dữ liệu cũ (projects trước vì có FK)
         projectRepository.deleteAllInBatch();
         employeeRepository.deleteAllInBatch();
@@ -280,5 +289,11 @@ public class EmployeeService {
                 .level(dto.getLevel())
                 .joinDate(dto.getJoinDate())
                 .build();
+    }
+
+    /** Kiểm tra tham số String không được null hoặc blank */
+    private static void requireNotBlank(String value, String param) {
+        if (value == null || value.isBlank())
+            throw new IllegalArgumentException("Tham số '" + param + "' không được để trống");
     }
 }

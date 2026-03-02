@@ -36,11 +36,13 @@ public class ProjectService {
 
     /** Lấy dự án theo ID */
     public ProjectDTO findById(String id) {
+        requireNotBlank(id, "id");
         return toDTO(getOrThrow(id));
     }
 
     /** Lấy tất cả dự án của một nhân viên */
     public List<ProjectDTO> findByEmployee(String employeeId) {
+        requireNotBlank(employeeId, "employeeId");
         employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Nhân viên", "id", employeeId));
         return projectRepository.findByEmployeeId(employeeId).stream()
@@ -50,6 +52,7 @@ public class ProjectService {
 
     /** Lọc dự án theo trạng thái */
     public List<ProjectDTO> findByStatus(ProjectStatus status) {
+        if (status == null) throw new IllegalArgumentException("Tham số 'status' không được null");
         return projectRepository.findByStatus(status).stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
@@ -57,6 +60,8 @@ public class ProjectService {
 
     /** Lọc dự án của nhân viên theo trạng thái */
     public List<ProjectDTO> findByEmployeeAndStatus(String employeeId, ProjectStatus status) {
+        requireNotBlank(employeeId, "employeeId");
+        if (status == null) throw new IllegalArgumentException("Tham số 'status' không được null");
         return projectRepository.findByEmployeeIdAndStatus(employeeId, status).stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
@@ -69,6 +74,7 @@ public class ProjectService {
     /** Tạo dự án mới */
     @Transactional
     public ProjectDTO create(ProjectDTO dto) {
+        if (dto == null) throw new IllegalArgumentException("Dữ liệu dự án không được null");
         Employee emp = employeeRepository.findById(dto.getEmployeeId())
                 .orElseThrow(() -> new ResourceNotFoundException("Nhân viên", "id", dto.getEmployeeId()));
 
@@ -83,6 +89,8 @@ public class ProjectService {
     /** Cập nhật dự án */
     @Transactional
     public ProjectDTO update(String id, ProjectDTO dto) {
+        requireNotBlank(id, "id");
+        if (dto == null) throw new IllegalArgumentException("Dữ liệu dự án không được null");
         Project existing = getOrThrow(id);
 
         // Cho phép thay đổi nhân viên tham gia
@@ -104,12 +112,14 @@ public class ProjectService {
     /** Xoá dự án */
     @Transactional
     public void delete(String id) {
+        requireNotBlank(id, "id");
         projectRepository.delete(getOrThrow(id));
     }
 
     /** Xoá tất cả dự án của nhân viên */
     @Transactional
     public void deleteByEmployee(String employeeId) {
+        requireNotBlank(employeeId, "employeeId");
         employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Nhân viên", "id", employeeId));
         projectRepository.deleteByEmployeeId(employeeId);
@@ -117,6 +127,7 @@ public class ProjectService {
 
     /** Lấy tất cả assignment theo tên dự án */
     public List<ProjectDTO> findByProjectName(String name) {
+        requireNotBlank(name, "name");
         return projectRepository.findByNameIgnoreCase(name).stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
@@ -125,6 +136,7 @@ public class ProjectService {
     /** Xoá toàn bộ dự án theo tên (xoá dự án + tất cả thành viên) */
     @Transactional
     public void deleteByProjectName(String name) {
+        requireNotBlank(name, "name");
         List<Project> projects = projectRepository.findByNameIgnoreCase(name);
         if (projects.isEmpty()) {
             throw new ResourceNotFoundException("Dự án", "name", name);
@@ -135,6 +147,8 @@ public class ProjectService {
     /** Đổi tên dự án (cập nhật tên cho tất cả assignment) */
     @Transactional
     public void renameProject(String oldName, String newName) {
+        requireNotBlank(oldName, "oldName");
+        requireNotBlank(newName, "newName");
         List<Project> projects = projectRepository.findByNameIgnoreCase(oldName);
         if (projects.isEmpty()) {
             throw new ResourceNotFoundException("Dự án", "name", oldName);
@@ -174,5 +188,11 @@ public class ProjectService {
                 .endDate(dto.getEndDate())
                 .status(dto.getStatus())
                 .build();
+    }
+
+    /** Kiểm tra tham số String không được null hoặc blank */
+    private static void requireNotBlank(String value, String param) {
+        if (value == null || value.isBlank())
+            throw new IllegalArgumentException("Tham số '" + param + "' không được để trống");
     }
 }
