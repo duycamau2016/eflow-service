@@ -40,5 +40,6 @@ desktop.ini
 # ─── Env / secrets ────────────────────────────────────────────────────────────
 .env
 *.env.local
-application-prod.properties
+# application-prod.properties chỉ chứa ${ENV_VAR} placeholders, không có secret thực
+# → an toàn để commit. Secret được inject qua env var trên Railway/Render.
 application-secret.properties
