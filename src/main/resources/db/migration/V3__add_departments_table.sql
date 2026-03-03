@@ -5,10 +5,9 @@
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS departments (
-    id         BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    name       VARCHAR(255) NOT NULL,
-    sort_order INT          DEFAULT 0,
-    CONSTRAINT uq_departments_name UNIQUE (name)
+    id         BIGSERIAL    NOT NULL PRIMARY KEY,
+    name       VARCHAR(255) NOT NULL UNIQUE,
+    sort_order INT          DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_departments_sort ON departments(sort_order);
