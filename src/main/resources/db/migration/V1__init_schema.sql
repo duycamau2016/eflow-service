@@ -6,28 +6,28 @@
 
 -- Bảng nhân viên
 CREATE TABLE IF NOT EXISTS employees (
-    id          VARCHAR(50)  NOT NULL PRIMARY KEY,
-    name        VARCHAR(255) NOT NULL,
-    position    VARCHAR(255) NOT NULL,
-    department  VARCHAR(255) NOT NULL,
-    email       VARCHAR(255) UNIQUE,
-    phone       VARCHAR(20),
-    manager_id  VARCHAR(50),
-    avatar      VARCHAR(255),
-    level       INT          DEFAULT 0,
-    join_date   DATE
+    id          VARCHAR(50)  NOT NULL PRIMARY KEY,           -- Mã nhân viên (VD: EMP001)
+    name        VARCHAR(255) NOT NULL,                       -- Họ và tên đầy đủ
+    position    VARCHAR(255) NOT NULL,                       -- Chức danh (VD: Backend Developer)
+    department  VARCHAR(255) NOT NULL,                       -- Phòng ban (VD: Engineering)
+    email       VARCHAR(255) UNIQUE,                         -- Email công ty (duy nhất)
+    phone       VARCHAR(20),                                 -- Số điện thoại liên hệ
+    manager_id  VARCHAR(50),                                 -- Mã quản lý trực tiếp (tự tham chiếu employees.id)
+    avatar      VARCHAR(255),                                -- URL ảnh đại diện
+    level       INT          DEFAULT 0,                      -- Cấp bậc nhân viên (0 = junior, tăng dần)
+    join_date   DATE                                         -- Ngày gia nhập công ty
 );
 
 -- Bảng assignment nhân viên - dự án
 -- (Mỗi dòng = 1 nhân viên tham gia 1 dự án)
 CREATE TABLE IF NOT EXISTS projects (
-    id          VARCHAR(50)  NOT NULL PRIMARY KEY,
-    employee_id VARCHAR(50)  NOT NULL,
-    name        VARCHAR(255) NOT NULL,
-    role        VARCHAR(255) NOT NULL,
-    start_date  DATE,
-    end_date    DATE,
-    status      VARCHAR(20)  NOT NULL DEFAULT 'pending'
+    id          VARCHAR(50)  NOT NULL PRIMARY KEY,           -- Mã assignment (UUID)
+    employee_id VARCHAR(50)  NOT NULL,                       -- FK → employees.id
+    name        VARCHAR(255) NOT NULL,                       -- Tên dự án
+    role        VARCHAR(255) NOT NULL,                       -- Vai trò của nhân viên trong dự án (VD: Tech Lead)
+    start_date  DATE,                                        -- Ngày bắt đầu tham gia dự án
+    end_date    DATE,                                        -- Ngày kết thúc tham gia dự án
+    status      VARCHAR(20)  NOT NULL DEFAULT 'pending'      -- Trạng thái: pending / active / completed
                 CHECK (status IN ('active', 'completed', 'pending')),
 
     CONSTRAINT fk_projects_employee
