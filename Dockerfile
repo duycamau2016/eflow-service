@@ -5,11 +5,11 @@ WORKDIR /app
 
 # Copy pom.xml trước để cache dependencies (tránh re-download khi chỉ thay đổi src)
 COPY pom.xml .
-RUN mvn dependency:go-offline -B
+RUN mvn dependency:resolve dependency:resolve-plugins -B --no-transfer-progress || true
 
 # Copy source và build
 COPY src ./src
-RUN mvn package -DskipTests -B
+RUN mvn package -DskipTests -B --no-transfer-progress
 
 # ─── Stage 2: Runtime ──────────────────────────────────────────────────────────
 FROM eclipse-temurin:17-jre-alpine
