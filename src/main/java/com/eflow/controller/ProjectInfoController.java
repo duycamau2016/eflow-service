@@ -5,24 +5,14 @@ import com.eflow.dto.ProjectInfoDTO;
 import com.eflow.service.ProjectInfoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * REST Controller cho Thông tin tài chính dự án.
- *
- * Base URL: /api/project-info
- *
- * Endpoints:
- *   GET    /api/project-info                        → Tất cả dự án có thông tin tài chính
- *   GET    /api/project-info/{projectName}          → Theo tên dự án
- *   POST   /api/project-info                        → Tạo mới
- *   PUT    /api/project-info/{projectName}          → Cập nhật
- *   DELETE /api/project-info/{projectName}          → Xóa
- */
+@Tag(name = "Tài chính Dự án", description = "Thông tin hợp đồng và tài chính")
 @RestController
 @RequestMapping("/api/project-info")
 @RequiredArgsConstructor

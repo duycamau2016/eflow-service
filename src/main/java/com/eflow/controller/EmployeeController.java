@@ -6,28 +6,14 @@ import com.eflow.dto.OrgNodeDTO;
 import com.eflow.service.EmployeeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * REST Controller cho Nhân viên.
- *
- * Base URL: /api/employees
- *
- * Endpoints:
- *   GET    /api/employees                       → Lấy tất cả nhân viên
- *   GET    /api/employees/{id}                  → Lấy nhân viên theo ID (kèm dự án)
- *   GET    /api/employees/search?keyword=       → Tìm kiếm nhân viên
- *   GET    /api/employees/department/{dept}     → Lọc theo phòng ban
- *   GET    /api/employees/{id}/subordinates     → Lấy nhân viên cấp dưới
- *   GET    /api/employees/org-tree              → Lấy sơ đồ tổ chức dạng cây
- *   POST   /api/employees                       → Tạo nhân viên mới
- *   PUT    /api/employees/{id}                  → Cập nhật nhân viên
- *   DELETE /api/employees/{id}                  → Xoá nhân viên
- */
+@Tag(name = "Nhân viên", description = "CRUD nhân viên + sơ đồ tổ chức")
 @RestController
 @RequestMapping("/api/employees")
 @RequiredArgsConstructor

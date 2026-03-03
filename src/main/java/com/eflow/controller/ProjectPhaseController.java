@@ -5,24 +5,14 @@ import com.eflow.dto.ProjectPhaseDTO;
 import com.eflow.service.ProjectPhaseService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * REST Controller cho Giai đoạn / Tiến độ dự án.
- *
- * Base URL: /api/project-phases
- *
- * Endpoints:
- *   GET    /api/project-phases/{projectName}        → Tất cả phase của dự án
- *   GET    /api/project-phases/item/{id}            → Theo ID
- *   POST   /api/project-phases                      → Tạo phase mới
- *   PUT    /api/project-phases/{id}                 → Cập nhật
- *   DELETE /api/project-phases/{id}                 → Xóa
- */
+@Tag(name = "Tiến độ Dự án", description = "CRUD phase / giai đoạn dự án")
 @RestController
 @RequestMapping("/api/project-phases")
 @RequiredArgsConstructor

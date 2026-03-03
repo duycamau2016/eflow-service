@@ -2,6 +2,7 @@ package com.eflow.controller;
 
 import com.eflow.dto.LoginRequestDTO;
 import com.eflow.dto.LoginResponseDTO;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,6 +16,7 @@ import java.util.Map;
  *   TIENTTT14 / Matkhau1!
  *   DUYHN4 / Matkhau1!
  */
+@Tag(name = "Xác thực", description = "Login / logout")
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {

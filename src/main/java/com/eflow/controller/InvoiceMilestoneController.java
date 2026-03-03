@@ -5,24 +5,14 @@ import com.eflow.dto.InvoiceMilestoneDTO;
 import com.eflow.service.InvoiceMilestoneService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * REST Controller cho Mốc hóa đơn dự án.
- *
- * Base URL: /api/invoice-milestones
- *
- * Endpoints:
- *   GET    /api/invoice-milestones/{projectName}    → Tất cả mốc của dự án
- *   GET    /api/invoice-milestones/item/{id}        → Theo ID
- *   POST   /api/invoice-milestones                  → Tạo mốc mới
- *   PUT    /api/invoice-milestones/{id}             → Cập nhật
- *   DELETE /api/invoice-milestones/{id}             → Xóa
- */
+@Tag(name = "Mốc Hóa đơn", description = "CRUD mốc xuất hóa đơn")
 @RestController
 @RequestMapping("/api/invoice-milestones")
 @RequiredArgsConstructor

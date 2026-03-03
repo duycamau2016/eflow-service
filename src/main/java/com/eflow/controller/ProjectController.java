@@ -6,28 +6,14 @@ import com.eflow.entity.Project.ProjectStatus;
 import com.eflow.service.ProjectService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * REST Controller cho Dự án.
- *
- * Base URL: /api/projects
- *
- * Endpoints:
- *   GET    /api/projects                              → Lấy tất cả dự án
- *   GET    /api/projects/{id}                         → Lấy dự án theo ID
- *   GET    /api/projects/employee/{employeeId}        → Dự án của nhân viên
- *   GET    /api/projects/status/{status}              → Lọc theo trạng thái
- *   GET    /api/projects/employee/{employeeId}/status/{status} → Lọc kết hợp
- *   POST   /api/projects                              → Tạo dự án mới
- *   PUT    /api/projects/{id}                         → Cập nhật dự án
- *   DELETE /api/projects/{id}                         → Xoá dự án
- *   DELETE /api/projects/employee/{employeeId}        → Xoá tất cả dự án của nhân viên
- */
+@Tag(name = "Dự án", description = "CRUD dự án + quản lý thành viên")
 @RestController
 @RequestMapping("/api/projects")
 @RequiredArgsConstructor
