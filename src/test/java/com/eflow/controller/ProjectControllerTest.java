@@ -5,6 +5,11 @@ import com.eflow.dto.ProjectDTO;
 import com.eflow.entity.Project.ProjectStatus;
 import com.eflow.exception.GlobalExceptionHandler;
 import com.eflow.exception.ResourceNotFoundException;
+import com.eflow.mapper.EmployeeMapper;
+import com.eflow.mapper.InvoiceMilestoneMapper;
+import com.eflow.mapper.ProjectInfoMapper;
+import com.eflow.mapper.ProjectMapper;
+import com.eflow.mapper.ProjectPhaseMapper;
 import com.eflow.service.ProjectService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -12,7 +17,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mybatis.spring.boot.autoconfigure.MybatisAutoConfiguration;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -31,16 +39,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Integration tests (MockMvc / @WebMvcTest) cho ProjectController.
- *
- * Bao gồm:
- *  - POST   /api/projects           → Tạo dự án / Thêm thành viên
- *  - GET    /api/projects/by-name/{name}
- *  - DELETE /api/projects/by-name/{name}
- *  - PUT    /api/projects/by-name/{name}/rename
- *  - PUT    /api/projects/{id}       → Cập nhật assignment thành viên
- *  - DELETE /api/projects/{id}       → Xoá assignment
  */
-@WebMvcTest(ProjectController.class)
+@WebMvcTest(value = ProjectController.class,
+        excludeAutoConfiguration = {
+                DataSourceAutoConfiguration.class,
+                FlywayAutoConfiguration.class,
+                MybatisAutoConfiguration.class
+        })
 @Import(GlobalExceptionHandler.class)
 @DisplayName("ProjectController MockMvc Tests")
 class ProjectControllerTest {
@@ -50,6 +55,13 @@ class ProjectControllerTest {
 
     @MockBean
     private ProjectService projectService;
+
+    // Mock tất cả mappers để @WebMvcTest context không cần sqlSessionFactory
+    @MockBean private EmployeeMapper employeeMapper;
+    @MockBean private ProjectMapper projectMapper;
+    @MockBean private ProjectInfoMapper projectInfoMapper;
+    @MockBean private InvoiceMilestoneMapper invoiceMilestoneMapper;
+    @MockBean private ProjectPhaseMapper projectPhaseMapper;
 
     private ObjectMapper objectMapper;
 

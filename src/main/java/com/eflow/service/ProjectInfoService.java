@@ -3,8 +3,8 @@ package com.eflow.service;
 import com.eflow.dto.ProjectInfoDTO;
 import com.eflow.entity.ProjectInfo;
 import com.eflow.exception.ResourceNotFoundException;
-import com.eflow.repository.InvoiceMilestoneRepository;
-import com.eflow.repository.ProjectInfoRepository;
+import com.eflow.mapper.InvoiceMilestoneMapper;
+import com.eflow.mapper.ProjectInfoMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,15 +19,15 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class ProjectInfoService {
 
-    private final ProjectInfoRepository projectInfoRepository;
-    private final InvoiceMilestoneRepository milestoneRepository;
+    private final ProjectInfoMapper projectInfoMapper;
+    private final InvoiceMilestoneMapper milestoneMapper;
 
     // ─────────────────────────────────────────────
     //  READ
     // ─────────────────────────────────────────────
 
     public List<ProjectInfoDTO> findAll() {
-        return projectInfoRepository.findAll().stream()
+        return projectInfoMapper.findAll().stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }
@@ -38,7 +38,7 @@ public class ProjectInfoService {
     }
 
     public ProjectInfoDTO findById(Long id) {
-        ProjectInfo info = projectInfoRepository.findById(id)
+        ProjectInfo info = projectInfoMapper.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Thông tin tài chính dự án", "id", id));
         return toDTO(info);
     }
@@ -51,12 +51,13 @@ public class ProjectInfoService {
     public ProjectInfoDTO create(ProjectInfoDTO dto) {
         if (dto == null) throw new IllegalArgumentException("Dữ liệu không được null");
         requireNotBlank(dto.getProjectName(), "projectName");
-        if (projectInfoRepository.existsByProjectNameIgnoreCase(dto.getProjectName())) {
+        if (projectInfoMapper.existsByProjectNameIgnoreCase(dto.getProjectName())) {
             throw new IllegalArgumentException(
                     "Dự án '" + dto.getProjectName() + "' đã có thông tin tài chính");
         }
         ProjectInfo entity = toEntity(dto);
-        return toDTO(projectInfoRepository.save(entity));
+        projectInfoMapper.insert(entity);
+        return toDTO(entity);
     }
 
     @Transactional
@@ -65,9 +66,8 @@ public class ProjectInfoService {
         if (dto == null) throw new IllegalArgumentException("Dữ liệu không được null");
         ProjectInfo existing = getOrThrow(projectName);
 
-        // Kiểm tra đổi tên trùng với dự án khác
         if (!existing.getProjectName().equalsIgnoreCase(dto.getProjectName()) &&
-                projectInfoRepository.existsByProjectNameIgnoreCaseAndIdNot(dto.getProjectName(), existing.getId())) {
+                projectInfoMapper.existsByProjectNameIgnoreCaseAndIdNot(dto.getProjectName(), existing.getId())) {
             throw new IllegalArgumentException("Tên dự án '" + dto.getProjectName() + "' đã tồn tại");
         }
 
@@ -81,14 +81,15 @@ public class ProjectInfoService {
         existing.setPlannedCost(dto.getPlannedCost());
         existing.setActualCost(dto.getActualCost());
 
-        return toDTO(projectInfoRepository.save(existing));
+        projectInfoMapper.update(existing);
+        return toDTO(existing);
     }
 
     @Transactional
     public void delete(String projectName) {
         requireNotBlank(projectName, "projectName");
         ProjectInfo existing = getOrThrow(projectName);
-        projectInfoRepository.delete(existing);
+        projectInfoMapper.deleteById(existing.getId());
     }
 
     // ─────────────────────────────────────────────
@@ -96,15 +97,17 @@ public class ProjectInfoService {
     // ─────────────────────────────────────────────
 
     private ProjectInfo getOrThrow(String projectName) {
-        return projectInfoRepository.findByProjectNameIgnoreCase(projectName)
+        return projectInfoMapper.findByProjectNameIgnoreCase(projectName)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Thông tin tài chính dự án", "projectName", projectName));
     }
 
     private ProjectInfoDTO toDTO(ProjectInfo entity) {
-        // Tính toán tổng đã xuất HĐ và đã thanh toán
-        BigDecimal totalInvoiced = milestoneRepository.sumInvoicedAmountByProject(entity.getProjectName());
-        BigDecimal totalPaid = milestoneRepository.sumPaidAmountByProject(entity.getProjectName());
+        BigDecimal totalInvoiced = milestoneMapper.sumInvoicedAmountByProject(entity.getProjectName());
+        BigDecimal totalPaid = milestoneMapper.sumPaidAmountByProject(entity.getProjectName());
+
+        if (totalInvoiced == null) totalInvoiced = BigDecimal.ZERO;
+        if (totalPaid == null) totalPaid = BigDecimal.ZERO;
 
         // Tính profit margin
         Double profitMargin = null;

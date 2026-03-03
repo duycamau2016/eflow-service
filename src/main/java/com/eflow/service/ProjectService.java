@@ -1,12 +1,11 @@
 package com.eflow.service;
 
 import com.eflow.dto.ProjectDTO;
-import com.eflow.entity.Employee;
 import com.eflow.entity.Project;
 import com.eflow.entity.Project.ProjectStatus;
 import com.eflow.exception.ResourceNotFoundException;
-import com.eflow.repository.EmployeeRepository;
-import com.eflow.repository.ProjectRepository;
+import com.eflow.mapper.EmployeeMapper;
+import com.eflow.mapper.ProjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,8 +19,8 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class ProjectService {
 
-    private final ProjectRepository projectRepository;
-    private final EmployeeRepository employeeRepository;
+    private final ProjectMapper projectMapper;
+    private final EmployeeMapper employeeMapper;
 
     // ─────────────────────────────────────────────
     //  READ
@@ -29,7 +28,7 @@ public class ProjectService {
 
     /** Lấy tất cả dự án */
     public List<ProjectDTO> findAll() {
-        return projectRepository.findAll().stream()
+        return projectMapper.findAll().stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }
@@ -43,9 +42,9 @@ public class ProjectService {
     /** Lấy tất cả dự án của một nhân viên */
     public List<ProjectDTO> findByEmployee(String employeeId) {
         requireNotBlank(employeeId, "employeeId");
-        employeeRepository.findById(employeeId)
+        employeeMapper.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Nhân viên", "id", employeeId));
-        return projectRepository.findByEmployeeId(employeeId).stream()
+        return projectMapper.findByEmployeeId(employeeId).stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }
@@ -53,7 +52,7 @@ public class ProjectService {
     /** Lọc dự án theo trạng thái */
     public List<ProjectDTO> findByStatus(ProjectStatus status) {
         if (status == null) throw new IllegalArgumentException("Tham số 'status' không được null");
-        return projectRepository.findByStatus(status).stream()
+        return projectMapper.findByStatus(status).stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }
@@ -62,7 +61,7 @@ public class ProjectService {
     public List<ProjectDTO> findByEmployeeAndStatus(String employeeId, ProjectStatus status) {
         requireNotBlank(employeeId, "employeeId");
         if (status == null) throw new IllegalArgumentException("Tham số 'status' không được null");
-        return projectRepository.findByEmployeeIdAndStatus(employeeId, status).stream()
+        return projectMapper.findByEmployeeIdAndStatus(employeeId, status).stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }
@@ -75,15 +74,15 @@ public class ProjectService {
     @Transactional
     public ProjectDTO create(ProjectDTO dto) {
         if (dto == null) throw new IllegalArgumentException("Dữ liệu dự án không được null");
-        Employee emp = employeeRepository.findById(dto.getEmployeeId())
+        employeeMapper.findById(dto.getEmployeeId())
                 .orElseThrow(() -> new ResourceNotFoundException("Nhân viên", "id", dto.getEmployeeId()));
 
-        Project project = toEntity(dto, emp);
+        Project project = toEntity(dto);
         project.setId(dto.getId() != null && !dto.getId().isBlank()
                 ? dto.getId()
                 : UUID.randomUUID().toString());
-
-        return toDTO(projectRepository.save(project));
+        projectMapper.insert(project);
+        return toDTO(project);
     }
 
     /** Cập nhật dự án */
@@ -93,11 +92,10 @@ public class ProjectService {
         if (dto == null) throw new IllegalArgumentException("Dữ liệu dự án không được null");
         Project existing = getOrThrow(id);
 
-        // Cho phép thay đổi nhân viên tham gia
-        if (!existing.getEmployee().getId().equals(dto.getEmployeeId())) {
-            Employee newEmp = employeeRepository.findById(dto.getEmployeeId())
+        if (!existing.getEmployeeId().equals(dto.getEmployeeId())) {
+            employeeMapper.findById(dto.getEmployeeId())
                     .orElseThrow(() -> new ResourceNotFoundException("Nhân viên", "id", dto.getEmployeeId()));
-            existing.setEmployee(newEmp);
+            existing.setEmployeeId(dto.getEmployeeId());
         }
 
         existing.setName(dto.getName());
@@ -105,72 +103,68 @@ public class ProjectService {
         existing.setStartDate(dto.getStartDate());
         existing.setEndDate(dto.getEndDate());
         existing.setStatus(dto.getStatus());
-
-        return toDTO(projectRepository.save(existing));
+        projectMapper.update(existing);
+        return toDTO(existing);
     }
 
     /** Xoá dự án */
     @Transactional
     public void delete(String id) {
         requireNotBlank(id, "id");
-        projectRepository.delete(getOrThrow(id));
+        getOrThrow(id);
+        projectMapper.deleteById(id);
     }
 
     /** Xoá tất cả dự án của nhân viên */
     @Transactional
     public void deleteByEmployee(String employeeId) {
         requireNotBlank(employeeId, "employeeId");
-        employeeRepository.findById(employeeId)
+        employeeMapper.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Nhân viên", "id", employeeId));
-        projectRepository.deleteByEmployeeId(employeeId);
+        projectMapper.deleteByEmployeeId(employeeId);
     }
 
     /** Lấy tất cả assignment theo tên dự án */
     public List<ProjectDTO> findByProjectName(String name) {
         requireNotBlank(name, "name");
-        return projectRepository.findByNameIgnoreCase(name).stream()
+        return projectMapper.findByNameIgnoreCase(name).stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }
 
-    /** Xoá toàn bộ dự án theo tên (xoá dự án + tất cả thành viên) */
+    /** Xoá toàn bộ dự án theo tên */
     @Transactional
     public void deleteByProjectName(String name) {
         requireNotBlank(name, "name");
-        List<Project> projects = projectRepository.findByNameIgnoreCase(name);
+        List<Project> projects = projectMapper.findByNameIgnoreCase(name);
         if (projects.isEmpty()) {
             throw new ResourceNotFoundException("Dự án", "name", name);
         }
-        projectRepository.deleteAll(projects);
+        projectMapper.deleteByNameIgnoreCase(name);
     }
 
-    /** Đổi tên dự án (cập nhật tên cho tất cả assignment) */
+    /** Đổi tên dự án */
     @Transactional
     public void renameProject(String oldName, String newName) {
         requireNotBlank(oldName, "oldName");
         requireNotBlank(newName, "newName");
-        List<Project> projects = projectRepository.findByNameIgnoreCase(oldName);
+        List<Project> projects = projectMapper.findByNameIgnoreCase(oldName);
         if (projects.isEmpty()) {
             throw new ResourceNotFoundException("Dự án", "name", oldName);
         }
-        projects.forEach(p -> p.setName(newName.trim()));
-        projectRepository.saveAll(projects);
+        projectMapper.updateNameByNameIgnoreCase(oldName, newName.trim());
     }
 
-    /**
-     * Cập nhật trạng thái dự án độc lập – áp dụng cho TẤT CẢ assignment cùng tên.
-     * Trạng thái dự án là thuộc tính của dự án, không phải của từng thành viên.
-     */
+    /** Cập nhật trạng thái dự án độc lập */
     @Transactional
     public void updateProjectStatus(String name, ProjectStatus status) {
         requireNotBlank(name, "name");
         if (status == null) throw new IllegalArgumentException("Tham số 'status' không được null");
-        List<Project> projects = projectRepository.findByNameIgnoreCase(name);
+        List<Project> projects = projectMapper.findByNameIgnoreCase(name);
         if (projects.isEmpty()) {
             throw new ResourceNotFoundException("Dự án", "name", name);
         }
-        projects.forEach(p -> p.setStatus(status));
-        projectRepository.saveAll(projects);
+        projectMapper.updateStatusByNameIgnoreCase(name, status);
     }
 
     // ─────────────────────────────────────────────
@@ -178,14 +172,14 @@ public class ProjectService {
     // ─────────────────────────────────────────────
 
     private Project getOrThrow(String id) {
-        return projectRepository.findById(id)
+        return projectMapper.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Dự án", "id", id));
     }
 
     public ProjectDTO toDTO(Project p) {
         return ProjectDTO.builder()
                 .id(p.getId())
-                .employeeId(p.getEmployee().getId())
+                .employeeId(p.getEmployeeId())
                 .name(p.getName())
                 .role(p.getRole())
                 .startDate(p.getStartDate())
@@ -194,10 +188,10 @@ public class ProjectService {
                 .build();
     }
 
-    private Project toEntity(ProjectDTO dto, Employee emp) {
+    private Project toEntity(ProjectDTO dto) {
         return Project.builder()
                 .id(dto.getId())
-                .employee(emp)
+                .employeeId(dto.getEmployeeId())
                 .name(dto.getName())
                 .role(dto.getRole())
                 .startDate(dto.getStartDate())

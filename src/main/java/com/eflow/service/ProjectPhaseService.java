@@ -4,7 +4,7 @@ import com.eflow.dto.ProjectPhaseDTO;
 import com.eflow.entity.ProjectPhase;
 import com.eflow.entity.ProjectPhase.PhaseStatus;
 import com.eflow.exception.ResourceNotFoundException;
-import com.eflow.repository.ProjectPhaseRepository;
+import com.eflow.mapper.ProjectPhaseMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class ProjectPhaseService {
 
-    private final ProjectPhaseRepository phaseRepository;
+    private final ProjectPhaseMapper phaseMapper;
 
     // ─────────────────────────────────────────────
     //  READ
@@ -25,7 +25,7 @@ public class ProjectPhaseService {
 
     public List<ProjectPhaseDTO> findByProject(String projectName) {
         requireNotBlank(projectName, "projectName");
-        return phaseRepository
+        return phaseMapper
                 .findByProjectNameIgnoreCaseOrderBySortOrderAsc(projectName)
                 .stream()
                 .map(this::toDTO)
@@ -45,7 +45,9 @@ public class ProjectPhaseService {
         if (dto == null) throw new IllegalArgumentException("Dữ liệu không được null");
         requireNotBlank(dto.getProjectName(), "projectName");
         requireNotBlank(dto.getName(), "name");
-        return toDTO(phaseRepository.save(toEntity(dto)));
+        ProjectPhase entity = toEntity(dto);
+        phaseMapper.insert(entity);
+        return toDTO(entity);
     }
 
     @Transactional
@@ -62,13 +64,14 @@ public class ProjectPhaseService {
         existing.setStatus(dto.getStatus());
         existing.setNote(dto.getNote());
         existing.setSortOrder(dto.getSortOrder());
-
-        return toDTO(phaseRepository.save(existing));
+        phaseMapper.update(existing);
+        return toDTO(existing);
     }
 
     @Transactional
     public void delete(Long id) {
-        phaseRepository.delete(getOrThrow(id));
+        getOrThrow(id);
+        phaseMapper.deleteById(id);
     }
 
     // ─────────────────────────────────────────────
@@ -76,7 +79,7 @@ public class ProjectPhaseService {
     // ─────────────────────────────────────────────
 
     private ProjectPhase getOrThrow(Long id) {
-        return phaseRepository.findById(id)
+        return phaseMapper.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Giai đoạn dự án", "id", id));
     }
 

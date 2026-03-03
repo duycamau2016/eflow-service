@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.eflow.mapper.EmployeeMapper">
+
+    <resultMap id="EmployeeResultMap" type="com.eflow.entity.Employee">
+        <id     property="id"         column="id"/>
+        <result property="name"       column="name"/>
+        <result property="position"   column="position"/>
+        <result property="department" column="department"/>
+        <result property="email"      column="email"/>
+        <result property="phone"      column="phone"/>
+        <result property="managerId"  column="manager_id"/>
+        <result property="avatar"     column="avatar"/>
+        <result property="level"      column="level"/>
+        <result property="joinDate"   column="join_date"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, name, position, department, email, phone, manager_id, avatar, level, join_date
+    </sql>
+
+    <select id="findAll" resultMap="EmployeeResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM employees
+        ORDER BY level, name
+    </select>
+
+    <select id="findById" resultMap="EmployeeResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM employees
+        WHERE id = #{id}
+    </select>
+
+    <select id="findByDepartmentIgnoreCase" resultMap="EmployeeResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM employees
+        WHERE LOWER(department) = LOWER(#{department})
+        ORDER BY name
+    </select>
+
+    <select id="findByManagerIdIsNull" resultMap="EmployeeResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM employees
+        WHERE manager_id IS NULL
+        ORDER BY name
+    </select>
+
+    <select id="findByManagerId" resultMap="EmployeeResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM employees
+        WHERE manager_id = #{managerId}
+        ORDER BY name
+    </select>
+
+    <select id="searchByKeyword" resultMap="EmployeeResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM employees
+        WHERE LOWER(name)       LIKE LOWER(CONCAT('%', #{keyword}, '%'))
+           OR LOWER(position)   LIKE LOWER(CONCAT('%', #{keyword}, '%'))
+           OR LOWER(department) LIKE LOWER(CONCAT('%', #{keyword}, '%'))
+        ORDER BY name
+    </select>
+
+    <select id="existsByEmail" resultType="boolean">
+        SELECT COUNT(*) > 0
+        FROM employees
+        WHERE LOWER(email) = LOWER(#{email})
+    </select>
+
+    <select id="existsByEmailAndIdNot" resultType="boolean">
+        SELECT COUNT(*) > 0
+        FROM employees
+        WHERE LOWER(email) = LOWER(#{email})
+          AND id != #{id}
+    </select>
+
+    <select id="countByManagerId" resultType="long">
+        SELECT COUNT(*)
+        FROM employees
+        WHERE manager_id = #{managerId}
+    </select>
+
+    <select id="findAllByIds" resultMap="EmployeeResultMap">
+        SELECT <include refid="BaseColumns"/>
+        FROM employees
+        WHERE id IN
+        <foreach item="id" collection="ids" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <insert id="insert" useGeneratedKeys="false">
+        INSERT INTO employees (id, name, position, department, email, phone, manager_id, avatar, level, join_date)
+        VALUES (#{id}, #{name}, #{position}, #{department}, #{email}, #{phone},
+                #{managerId}, #{avatar}, #{level}, #{joinDate})
+    </insert>
+
+    <update id="update">
+        UPDATE employees SET
+            name       = #{name},
+            position   = #{position},
+            department = #{department},
+            email      = #{email},
+            phone      = #{phone},
+            manager_id = #{managerId},
+            avatar     = #{avatar},
+            level      = #{level},
+            join_date  = #{joinDate}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM employees WHERE id = #{id}
+    </delete>
+
+    <update id="updateManagerId">
+        UPDATE employees SET manager_id = #{managerId} WHERE id = #{id}
+    </update>
+
+</mapper>

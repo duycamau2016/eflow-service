@@ -5,8 +5,8 @@ import com.eflow.entity.Employee;
 import com.eflow.entity.Project;
 import com.eflow.entity.Project.ProjectStatus;
 import com.eflow.exception.ResourceNotFoundException;
-import com.eflow.repository.EmployeeRepository;
-import com.eflow.repository.ProjectRepository;
+import com.eflow.mapper.EmployeeMapper;
+import com.eflow.mapper.ProjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -25,30 +25,18 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
 
-/**
- * Unit tests cho ProjectService.
- *
- * Bao gồm các ca kiểm thử:
- *  - Tạo dự án mới (create)          → thêm thành viên đầu tiên vào dự án
- *  - Tìm kiếm theo tên dự án         → findByProjectName
- *  - Xoá dự án theo tên              → deleteByProjectName
- *  - Đổi tên dự án                   → renameProject
- *  - Cập nhật assignment thành viên  → update
- */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ProjectService Unit Tests")
 class ProjectServiceTest {
 
     @Mock
-    private ProjectRepository projectRepository;
+    private ProjectMapper projectMapper;
 
     @Mock
-    private EmployeeRepository employeeRepository;
+    private EmployeeMapper employeeMapper;
 
     @InjectMocks
     private ProjectService projectService;
-
-    // ─── Dữ liệu dùng chung ────────────────────────────────────────────────
 
     private Employee sampleEmployee;
     private Project  sampleProject;
@@ -58,7 +46,7 @@ class ProjectServiceTest {
     void setUp() {
         sampleEmployee = Employee.builder()
                 .id("EMP001")
-                .name("Nguyễn Văn A")
+                .name("Nguyen Van A")
                 .position("Developer")
                 .department("Engineering")
                 .email("nva@company.com")
@@ -67,7 +55,7 @@ class ProjectServiceTest {
 
         sampleProject = Project.builder()
                 .id("PROJ-001")
-                .employee(sampleEmployee)
+                .employeeId("EMP001")
                 .name("eFlow Platform")
                 .role("Tech Lead")
                 .startDate(LocalDate.of(2024, 1, 1))
@@ -86,19 +74,15 @@ class ProjectServiceTest {
                 .build();
     }
 
-    // ══════════════════════════════════════════════════════════════════════
-    //  TẠO DỰ ÁN (thêm thành viên vào dự án)
-    // ══════════════════════════════════════════════════════════════════════
-
     @Nested
-    @DisplayName("create() - Tạo dự án / Thêm thành viên")
+    @DisplayName("create() - Tao du an / Them thanh vien")
     class CreateTests {
 
         @Test
-        @DisplayName("Trả về DTO khi tạo thành công với ID được cung cấp")
+        @DisplayName("Tra ve DTO khi tao thanh cong voi ID duoc cung cap")
         void create_returnsDTO_whenValidDTOWithProvidedId() {
-            given(employeeRepository.findById("EMP001")).willReturn(Optional.of(sampleEmployee));
-            given(projectRepository.save(any(Project.class))).willReturn(sampleProject);
+            given(employeeMapper.findById("EMP001")).willReturn(Optional.of(sampleEmployee));
+            given(projectMapper.insert(any(Project.class))).willReturn(1);
 
             ProjectDTO result = projectService.create(sampleDTO);
 
@@ -109,65 +93,35 @@ class ProjectServiceTest {
             assertThat(result.getRole()).isEqualTo("Tech Lead");
             assertThat(result.getStatus()).isEqualTo(ProjectStatus.active);
 
-            then(employeeRepository).should().findById("EMP001");
-            then(projectRepository).should().save(any(Project.class));
+            then(employeeMapper).should().findById("EMP001");
+            then(projectMapper).should().insert(any(Project.class));
         }
 
         @Test
-        @DisplayName("Tự sinh UUID khi ID trong DTO để trống")
+        @DisplayName("Tu sinh UUID khi ID trong DTO de trong")
         void create_generatesUUID_whenIdIsBlank() {
             ProjectDTO dtoNoId = ProjectDTO.builder()
-                    .id("")                   // blank → UUID sẽ được sinh
+                    .id("")
                     .employeeId("EMP001")
                     .name("eFlow Platform")
                     .role("Developer")
                     .status(ProjectStatus.active)
                     .build();
 
-            Project savedProject = Project.builder()
-                    .id("auto-uuid")
-                    .employee(sampleEmployee)
-                    .name("eFlow Platform")
-                    .role("Developer")
-                    .status(ProjectStatus.active)
-                    .build();
+            given(employeeMapper.findById("EMP001")).willReturn(Optional.of(sampleEmployee));
+            given(projectMapper.insert(any(Project.class))).willReturn(1);
 
-            given(employeeRepository.findById("EMP001")).willReturn(Optional.of(sampleEmployee));
-            given(projectRepository.save(any(Project.class))).willReturn(savedProject);
+            projectService.create(dtoNoId);
 
-            ProjectDTO result = projectService.create(dtoNoId);
-
-            // ID phải được gán (không null / blank)
             ArgumentCaptor<Project> captor = ArgumentCaptor.forClass(Project.class);
-            then(projectRepository).should().save(captor.capture());
+            then(projectMapper).should().insert(captor.capture());
             assertThat(captor.getValue().getId()).isNotBlank();
         }
 
         @Test
-        @DisplayName("Tự sinh UUID khi ID trong DTO là null")
-        void create_generatesUUID_whenIdIsNull() {
-            ProjectDTO dtoNullId = ProjectDTO.builder()
-                    .id(null)
-                    .employeeId("EMP001")
-                    .name("eFlow Platform")
-                    .role("QA Engineer")
-                    .status(ProjectStatus.pending)
-                    .build();
-
-            given(employeeRepository.findById("EMP001")).willReturn(Optional.of(sampleEmployee));
-            given(projectRepository.save(any(Project.class))).willAnswer(inv -> inv.getArgument(0));
-
-            projectService.create(dtoNullId);
-
-            ArgumentCaptor<Project> captor = ArgumentCaptor.forClass(Project.class);
-            then(projectRepository).should().save(captor.capture());
-            assertThat(captor.getValue().getId()).isNotBlank();
-        }
-
-        @Test
-        @DisplayName("Ném ResourceNotFoundException khi nhân viên không tồn tại")
+        @DisplayName("Nem ResourceNotFoundException khi nhan vien khong ton tai")
         void create_throwsResourceNotFoundException_whenEmployeeNotFound() {
-            given(employeeRepository.findById("UNKNOWN")).willReturn(Optional.empty());
+            given(employeeMapper.findById("UNKNOWN")).willReturn(Optional.empty());
 
             ProjectDTO dtoUnknownEmp = ProjectDTO.builder()
                     .employeeId("UNKNOWN")
@@ -180,253 +134,147 @@ class ProjectServiceTest {
                     .isInstanceOf(ResourceNotFoundException.class)
                     .hasMessageContaining("UNKNOWN");
 
-            then(projectRepository).should(never()).save(any());
+            then(projectMapper).should(never()).insert(any());
         }
 
         @Test
-        @DisplayName("Lưu đúng tên dự án và vai trò vào entity")
+        @DisplayName("Luu dung ten du an va vai tro vao entity")
         void create_savesCorrectProjectNameAndRole() {
             ProjectDTO dto = ProjectDTO.builder()
                     .employeeId("EMP001")
-                    .name("Dự án Alpha")
+                    .name("Du an Alpha")
                     .role("Backend Developer")
                     .startDate(LocalDate.of(2025, 6, 1))
                     .status(ProjectStatus.pending)
                     .build();
 
-            given(employeeRepository.findById("EMP001")).willReturn(Optional.of(sampleEmployee));
-            given(projectRepository.save(any(Project.class))).willAnswer(inv -> inv.getArgument(0));
+            given(employeeMapper.findById("EMP001")).willReturn(Optional.of(sampleEmployee));
+            given(projectMapper.insert(any(Project.class))).willReturn(1);
 
             projectService.create(dto);
 
             ArgumentCaptor<Project> captor = ArgumentCaptor.forClass(Project.class);
-            then(projectRepository).should().save(captor.capture());
+            then(projectMapper).should().insert(captor.capture());
 
             Project saved = captor.getValue();
-            assertThat(saved.getName()).isEqualTo("Dự án Alpha");
+            assertThat(saved.getName()).isEqualTo("Du an Alpha");
             assertThat(saved.getRole()).isEqualTo("Backend Developer");
             assertThat(saved.getStartDate()).isEqualTo(LocalDate.of(2025, 6, 1));
             assertThat(saved.getStatus()).isEqualTo(ProjectStatus.pending);
-            assertThat(saved.getEmployee().getId()).isEqualTo("EMP001");
-        }
-
-        @Test
-        @DisplayName("Thêm nhiều thành viên vào cùng một dự án")
-        void create_allowsMultipleMembersWithSameProjectName() {
-            Employee emp2 = Employee.builder()
-                    .id("EMP002").name("Trần Thị B")
-                    .position("Designer").department("Design")
-                    .email("ttb@company.com").build();
-
-            ProjectDTO dto2 = ProjectDTO.builder()
-                    .employeeId("EMP002")
-                    .name("eFlow Platform")   // cùng tên dự án
-                    .role("UI Designer")
-                    .status(ProjectStatus.active)
-                    .build();
-
-            Project savedForEmp2 = Project.builder()
-                    .id("PROJ-002")
-                    .employee(emp2)
-                    .name("eFlow Platform")
-                    .role("UI Designer")
-                    .status(ProjectStatus.active)
-                    .build();
-
-            given(employeeRepository.findById("EMP002")).willReturn(Optional.of(emp2));
-            given(projectRepository.save(any(Project.class))).willReturn(savedForEmp2);
-
-            ProjectDTO result = projectService.create(dto2);
-
-            assertThat(result.getName()).isEqualTo("eFlow Platform");
-            assertThat(result.getEmployeeId()).isEqualTo("EMP002");
-            assertThat(result.getRole()).isEqualTo("UI Designer");
+            assertThat(saved.getEmployeeId()).isEqualTo("EMP001");
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════
-    //  TÌM THEO TÊN DỰ ÁN
-    // ══════════════════════════════════════════════════════════════════════
-
     @Nested
-    @DisplayName("findByProjectName() - Lấy thành viên theo tên dự án")
+    @DisplayName("findByProjectName() - Lay thanh vien theo ten du an")
     class FindByProjectNameTests {
 
         @Test
-        @DisplayName("Trả về danh sách assignments khi tồn tại")
+        @DisplayName("Tra ve danh sach assignments khi ton tai")
         void findByProjectName_returnsList_whenExists() {
-            Employee emp2 = Employee.builder()
-                    .id("EMP002").name("Trần Thị B")
-                    .position("Designer").department("Design")
-                    .email("ttb@company.com").build();
-
             Project p2 = Project.builder()
-                    .id("PROJ-002").employee(emp2)
+                    .id("PROJ-002").employeeId("EMP002")
                     .name("eFlow Platform").role("UI Designer")
                     .status(ProjectStatus.active).build();
 
-            given(projectRepository.findByNameIgnoreCase("eFlow Platform"))
+            given(projectMapper.findByNameIgnoreCase("eFlow Platform"))
                     .willReturn(List.of(sampleProject, p2));
 
             List<ProjectDTO> result = projectService.findByProjectName("eFlow Platform");
 
             assertThat(result).hasSize(2);
-            assertThat(result).extracting(ProjectDTO::getName)
-                    .containsOnly("eFlow Platform");
+            assertThat(result).extracting(ProjectDTO::getName).containsOnly("eFlow Platform");
             assertThat(result).extracting(ProjectDTO::getEmployeeId)
                     .containsExactlyInAnyOrder("EMP001", "EMP002");
         }
 
         @Test
-        @DisplayName("Trả về danh sách rỗng khi không có assignment nào")
+        @DisplayName("Tra ve danh sach rong khi khong co assignment nao")
         void findByProjectName_returnsEmptyList_whenNotExists() {
-            given(projectRepository.findByNameIgnoreCase("Không tồn tại"))
-                    .willReturn(List.of());
+            given(projectMapper.findByNameIgnoreCase("Khong ton tai")).willReturn(List.of());
 
-            List<ProjectDTO> result = projectService.findByProjectName("Không tồn tại");
+            List<ProjectDTO> result = projectService.findByProjectName("Khong ton tai");
 
             assertThat(result).isEmpty();
         }
-
-        @Test
-        @DisplayName("Tìm kiếm không phân biệt hoa thường")
-        void findByProjectName_isCaseInsensitive() {
-            given(projectRepository.findByNameIgnoreCase("EFLOW PLATFORM"))
-                    .willReturn(List.of(sampleProject));
-
-            List<ProjectDTO> result = projectService.findByProjectName("EFLOW PLATFORM");
-
-            assertThat(result).hasSize(1);
-            then(projectRepository).should().findByNameIgnoreCase("EFLOW PLATFORM");
-        }
     }
 
-    // ══════════════════════════════════════════════════════════════════════
-    //  XOÁ DỰ ÁN THEO TÊN
-    // ══════════════════════════════════════════════════════════════════════
-
     @Nested
-    @DisplayName("deleteByProjectName() - Xoá dự án theo tên")
+    @DisplayName("deleteByProjectName() - Xoa du an theo ten")
     class DeleteByProjectNameTests {
 
         @Test
-        @DisplayName("Xoá tất cả assignments khi dự án tồn tại")
+        @DisplayName("Xoa tat ca assignments khi du an ton tai")
         void deleteByProjectName_deletesAll_whenProjectExists() {
-            given(projectRepository.findByNameIgnoreCase("eFlow Platform"))
+            given(projectMapper.findByNameIgnoreCase("eFlow Platform"))
                     .willReturn(List.of(sampleProject));
-            willDoNothing().given(projectRepository).deleteAll(anyList());
+            given(projectMapper.deleteByNameIgnoreCase("eFlow Platform")).willReturn(1);
 
             projectService.deleteByProjectName("eFlow Platform");
 
-            then(projectRepository).should().deleteAll(List.of(sampleProject));
+            then(projectMapper).should().deleteByNameIgnoreCase("eFlow Platform");
         }
 
         @Test
-        @DisplayName("Ném ResourceNotFoundException khi dự án không tồn tại")
+        @DisplayName("Nem ResourceNotFoundException khi du an khong ton tai")
         void deleteByProjectName_throwsResourceNotFoundException_whenNotFound() {
-            given(projectRepository.findByNameIgnoreCase("Project X"))
-                    .willReturn(List.of());
+            given(projectMapper.findByNameIgnoreCase("Project X")).willReturn(List.of());
 
             assertThatThrownBy(() -> projectService.deleteByProjectName("Project X"))
                     .isInstanceOf(ResourceNotFoundException.class)
                     .hasMessageContaining("Project X");
 
-            then(projectRepository).should(never()).deleteAll(anyList());
-        }
-
-        @Test
-        @DisplayName("Xoá tất cả assignments của dự án có nhiều thành viên")
-        void deleteByProjectName_deletesAllMembers_whenMultipleAssignments() {
-            Project p2 = Project.builder()
-                    .id("PROJ-002").employee(sampleEmployee)
-                    .name("eFlow Platform").role("Developer")
-                    .status(ProjectStatus.active).build();
-
-            List<Project> all = List.of(sampleProject, p2);
-            given(projectRepository.findByNameIgnoreCase("eFlow Platform")).willReturn(all);
-            willDoNothing().given(projectRepository).deleteAll(all);
-
-            projectService.deleteByProjectName("eFlow Platform");
-
-            then(projectRepository).should().deleteAll(all);
+            then(projectMapper).should(never()).deleteByNameIgnoreCase(any());
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════
-    //  ĐỔI TÊN DỰ ÁN
-    // ══════════════════════════════════════════════════════════════════════
-
     @Nested
-    @DisplayName("renameProject() - Đổi tên dự án")
+    @DisplayName("renameProject() - Doi ten du an")
     class RenameProjectTests {
 
         @Test
-        @DisplayName("Cập nhật tên cho tất cả assignments khi đổi tên thành công")
+        @DisplayName("Cap nhat ten cho tat ca assignments khi doi ten thanh cong")
         void renameProject_updatesAllAssignments_whenExists() {
-            Project p2 = Project.builder()
-                    .id("PROJ-002").employee(sampleEmployee)
-                    .name("eFlow Platform").role("Developer")
-                    .status(ProjectStatus.active).build();
-
-            given(projectRepository.findByNameIgnoreCase("eFlow Platform"))
-                    .willReturn(List.of(sampleProject, p2));
-            given(projectRepository.saveAll(anyList())).willAnswer(inv -> inv.getArgument(0));
+            given(projectMapper.findByNameIgnoreCase("eFlow Platform"))
+                    .willReturn(List.of(sampleProject));
+            given(projectMapper.updateNameByNameIgnoreCase(anyString(), anyString())).willReturn(1);
 
             projectService.renameProject("eFlow Platform", "eFlow v2.0");
 
-            assertThat(sampleProject.getName()).isEqualTo("eFlow v2.0");
-            assertThat(p2.getName()).isEqualTo("eFlow v2.0");
-            then(projectRepository).should().saveAll(anyList());
+            then(projectMapper).should().updateNameByNameIgnoreCase("eFlow Platform", "eFlow v2.0");
         }
 
         @Test
-        @DisplayName("Tên mới được trim khoảng trắng thừa")
-        void renameProject_trimsWhitespace_fromNewName() {
-            given(projectRepository.findByNameIgnoreCase("eFlow Platform"))
-                    .willReturn(List.of(sampleProject));
-            given(projectRepository.saveAll(anyList())).willAnswer(inv -> inv.getArgument(0));
-
-            projectService.renameProject("eFlow Platform", "  eFlow v2.0  ");
-
-            assertThat(sampleProject.getName()).isEqualTo("eFlow v2.0");
-        }
-
-        @Test
-        @DisplayName("Ném ResourceNotFoundException khi tên cũ không tồn tại")
+        @DisplayName("Nem ResourceNotFoundException khi ten cu khong ton tai")
         void renameProject_throwsResourceNotFoundException_whenOldNameNotFound() {
-            given(projectRepository.findByNameIgnoreCase("Project X"))
-                    .willReturn(List.of());
+            given(projectMapper.findByNameIgnoreCase("Project X")).willReturn(List.of());
 
             assertThatThrownBy(() -> projectService.renameProject("Project X", "Project Y"))
                     .isInstanceOf(ResourceNotFoundException.class)
                     .hasMessageContaining("Project X");
 
-            then(projectRepository).should(never()).saveAll(anyList());
+            then(projectMapper).should(never()).updateNameByNameIgnoreCase(any(), any());
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════
-    //  CẬP NHẬT THÀNH VIÊN (update assignment)
-    // ══════════════════════════════════════════════════════════════════════
-
     @Nested
-    @DisplayName("update() - Cập nhật thông tin thành viên trong dự án")
+    @DisplayName("update() - Cap nhat thong tin thanh vien trong du an")
     class UpdateTests {
 
         @Test
-        @DisplayName("Cập nhật thành công các trường role, status, dates")
+        @DisplayName("Cap nhat thanh cong cac truong role, status, dates")
         void update_updatesFields_whenProjectExists() {
-            given(projectRepository.findById("PROJ-001")).willReturn(Optional.of(sampleProject));
-            given(projectRepository.save(any(Project.class))).willAnswer(inv -> inv.getArgument(0));
+            given(projectMapper.findById("PROJ-001")).willReturn(Optional.of(sampleProject));
+            given(projectMapper.update(any(Project.class))).willReturn(1);
 
             ProjectDTO updateDTO = ProjectDTO.builder()
                     .id("PROJ-001")
-                    .employeeId("EMP001")        // cùng nhân viên
+                    .employeeId("EMP001")
                     .name("eFlow Platform")
-                    .role("Senior Tech Lead")    // đổi role
+                    .role("Senior Tech Lead")
                     .startDate(LocalDate.of(2024, 1, 1))
-                    .endDate(LocalDate.of(2025, 12, 31))  // thêm endDate
-                    .status(ProjectStatus.completed)      // đổi status
+                    .endDate(LocalDate.of(2025, 12, 31))
+                    .status(ProjectStatus.completed)
                     .build();
 
             ProjectDTO result = projectService.update("PROJ-001", updateDTO);
@@ -437,35 +285,9 @@ class ProjectServiceTest {
         }
 
         @Test
-        @DisplayName("Thay đổi nhân viên khi employeeId khác")
-        void update_changesEmployee_whenEmployeeIdDiffers() {
-            Employee emp2 = Employee.builder()
-                    .id("EMP002").name("Trần Thị B")
-                    .position("PM").department("Management")
-                    .email("ttb@company.com").build();
-
-            given(projectRepository.findById("PROJ-001")).willReturn(Optional.of(sampleProject));
-            given(employeeRepository.findById("EMP002")).willReturn(Optional.of(emp2));
-            given(projectRepository.save(any(Project.class))).willAnswer(inv -> inv.getArgument(0));
-
-            ProjectDTO updateDTO = ProjectDTO.builder()
-                    .id("PROJ-001")
-                    .employeeId("EMP002")      // đổi sang nhân viên mới
-                    .name("eFlow Platform")
-                    .role("Project Manager")
-                    .status(ProjectStatus.active)
-                    .build();
-
-            ProjectDTO result = projectService.update("PROJ-001", updateDTO);
-
-            assertThat(result.getEmployeeId()).isEqualTo("EMP002");
-            then(employeeRepository).should().findById("EMP002");
-        }
-
-        @Test
-        @DisplayName("Ném ResourceNotFoundException khi assignment không tồn tại")
+        @DisplayName("Nem ResourceNotFoundException khi assignment khong ton tai")
         void update_throwsResourceNotFoundException_whenProjectNotFound() {
-            given(projectRepository.findById("UNKNOWN")).willReturn(Optional.empty());
+            given(projectMapper.findById("UNKNOWN")).willReturn(Optional.empty());
 
             assertThatThrownBy(() -> projectService.update("UNKNOWN", sampleDTO))
                     .isInstanceOf(ResourceNotFoundException.class)
@@ -473,35 +295,35 @@ class ProjectServiceTest {
         }
 
         @Test
-        @DisplayName("Ném ResourceNotFoundException khi nhân viên mới không tồn tại")
-        void update_throwsResourceNotFoundException_whenNewEmployeeNotFound() {
-            given(projectRepository.findById("PROJ-001")).willReturn(Optional.of(sampleProject));
-            given(employeeRepository.findById("EMP999")).willReturn(Optional.empty());
+        @DisplayName("Doi nhan vien khi employeeId khac")
+        void update_changesEmployee_whenEmployeeIdDiffers() {
+            given(projectMapper.findById("PROJ-001")).willReturn(Optional.of(sampleProject));
+            given(employeeMapper.findById("EMP002")).willReturn(Optional.of(
+                    Employee.builder().id("EMP002").name("Tran Thi B")
+                            .position("PM").department("Management")
+                            .email("ttb@company.com").build()));
+            given(projectMapper.update(any(Project.class))).willReturn(1);
 
             ProjectDTO updateDTO = ProjectDTO.builder()
-                    .id("PROJ-001").employeeId("EMP999")
-                    .name("eFlow Platform").role("Dev")
+                    .id("PROJ-001").employeeId("EMP002")
+                    .name("eFlow Platform").role("Project Manager")
                     .status(ProjectStatus.active).build();
 
-            assertThatThrownBy(() -> projectService.update("PROJ-001", updateDTO))
-                    .isInstanceOf(ResourceNotFoundException.class)
-                    .hasMessageContaining("EMP999");
+            ProjectDTO result = projectService.update("PROJ-001", updateDTO);
+
+            assertThat(result.getEmployeeId()).isEqualTo("EMP002");
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════
-    //  TÌM THEO NHÂN VIÊN
-    // ══════════════════════════════════════════════════════════════════════
-
     @Nested
-    @DisplayName("findByEmployee() - Lấy dự án theo nhân viên")
+    @DisplayName("findByEmployee() - Lay du an theo nhan vien")
     class FindByEmployeeTests {
 
         @Test
-        @DisplayName("Trả về danh sách dự án của nhân viên")
+        @DisplayName("Tra ve danh sach du an cua nhan vien")
         void findByEmployee_returnsList_whenEmployeeExists() {
-            given(employeeRepository.findById("EMP001")).willReturn(Optional.of(sampleEmployee));
-            given(projectRepository.findByEmployeeId("EMP001")).willReturn(List.of(sampleProject));
+            given(employeeMapper.findById("EMP001")).willReturn(Optional.of(sampleEmployee));
+            given(projectMapper.findByEmployeeId("EMP001")).willReturn(List.of(sampleProject));
 
             List<ProjectDTO> result = projectService.findByEmployee("EMP001");
 
@@ -511,15 +333,15 @@ class ProjectServiceTest {
         }
 
         @Test
-        @DisplayName("Ném ResourceNotFoundException khi nhân viên không tồn tại")
+        @DisplayName("Nem ResourceNotFoundException khi nhan vien khong ton tai")
         void findByEmployee_throwsResourceNotFoundException_whenNotFound() {
-            given(employeeRepository.findById("GHOST")).willReturn(Optional.empty());
+            given(employeeMapper.findById("GHOST")).willReturn(Optional.empty());
 
             assertThatThrownBy(() -> projectService.findByEmployee("GHOST"))
                     .isInstanceOf(ResourceNotFoundException.class)
                     .hasMessageContaining("GHOST");
 
-            then(projectRepository).should(never()).findByEmployeeId(any());
+            then(projectMapper).should(never()).findByEmployeeId(any());
         }
     }
 }

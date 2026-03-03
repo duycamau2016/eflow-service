@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.eflow.mapper.InvoiceMilestoneMapper">
+
+    <resultMap id="MilestoneResultMap" type="com.eflow.entity.InvoiceMilestone">
+        <id     property="id"          column="id"/>
+        <result property="projectName" column="project_name"/>
+        <result property="name"        column="name"/>
+        <result property="amount"      column="amount"/>
+        <result property="plannedDate" column="planned_date"/>
+        <result property="actualDate"  column="actual_date"/>
+        <result property="status"      column="status"
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+        <result property="note"        column="note"/>
+        <result property="sortOrder"   column="sort_order"/>
+        <result property="createdAt"   column="created_at"/>
+        <result property="updatedAt"   column="updated_at"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, project_name, name, amount, planned_date, actual_date,
+        status, note, sort_order, created_at, updated_at
+    </sql>
+
+    <select id="findById" resultMap="MilestoneResultMap">
+        SELECT <include refid="BaseColumns"/> FROM invoice_milestone WHERE id = #{id}
+    </select>
+
+    <select id="findByProjectNameIgnoreCaseOrderBySortOrderAsc" resultMap="MilestoneResultMap">
+        SELECT <include refid="BaseColumns"/> FROM invoice_milestone
+        WHERE LOWER(project_name) = LOWER(#{projectName})
+        ORDER BY sort_order ASC, id ASC
+    </select>
+
+    <select id="sumInvoicedAmountByProject" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(amount), 0)
+        FROM invoice_milestone
+        WHERE LOWER(project_name) = LOWER(#{projectName})
+          AND status IN ('invoiced', 'paid')
+    </select>
+
+    <select id="sumPaidAmountByProject" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(amount), 0)
+        FROM invoice_milestone
+        WHERE LOWER(project_name) = LOWER(#{projectName})
+          AND status = 'paid'
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO invoice_milestone
+            (project_name, name, amount, planned_date, actual_date, status, note, sort_order)
+        VALUES
+            (#{projectName}, #{name}, #{amount}, #{plannedDate}, #{actualDate},
+             #{status}, #{note}, #{sortOrder})
+    </insert>
+
+    <update id="update">
+        UPDATE invoice_milestone SET
+            name         = #{name},
+            amount       = #{amount},
+            planned_date = #{plannedDate},
+            actual_date  = #{actualDate},
+            status       = #{status},
+            note         = #{note},
+            sort_order   = #{sortOrder},
+            updated_at   = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM invoice_milestone WHERE id = #{id}
+    </delete>
+
+    <delete id="deleteByProjectNameIgnoreCase">
+        DELETE FROM invoice_milestone WHERE LOWER(project_name) = LOWER(#{projectName})
+    </delete>
+
+</mapper>

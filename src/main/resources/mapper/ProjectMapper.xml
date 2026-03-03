@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.eflow.mapper.ProjectMapper">
+
+    <resultMap id="ProjectResultMap" type="com.eflow.entity.Project">
+        <id     property="id"         column="id"/>
+        <result property="employeeId" column="employee_id"/>
+        <result property="name"       column="name"/>
+        <result property="role"       column="role"/>
+        <result property="startDate"  column="start_date"/>
+        <result property="endDate"    column="end_date"/>
+        <result property="status"     column="status"
+                typeHandler="org.apache.ibatis.type.EnumTypeHandler"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        id, employee_id, name, role, start_date, end_date, status
+    </sql>
+
+    <select id="findAll" resultMap="ProjectResultMap">
+        SELECT <include refid="BaseColumns"/> FROM projects ORDER BY name
+    </select>
+
+    <select id="findById" resultMap="ProjectResultMap">
+        SELECT <include refid="BaseColumns"/> FROM projects WHERE id = #{id}
+    </select>
+
+    <select id="findByEmployeeId" resultMap="ProjectResultMap">
+        SELECT <include refid="BaseColumns"/> FROM projects
+        WHERE employee_id = #{employeeId}
+        ORDER BY name
+    </select>
+
+    <select id="findByStatus" resultMap="ProjectResultMap">
+        SELECT <include refid="BaseColumns"/> FROM projects
+        WHERE status = #{status}
+        ORDER BY name
+    </select>
+
+    <select id="findByEmployeeIdAndStatus" resultMap="ProjectResultMap">
+        SELECT <include refid="BaseColumns"/> FROM projects
+        WHERE employee_id = #{employeeId}
+          AND status = #{status}
+        ORDER BY name
+    </select>
+
+    <select id="findByNameIgnoreCase" resultMap="ProjectResultMap">
+        SELECT <include refid="BaseColumns"/> FROM projects
+        WHERE LOWER(name) = LOWER(#{name})
+        ORDER BY employee_id
+    </select>
+
+    <select id="findAllByIds" resultMap="ProjectResultMap">
+        SELECT <include refid="BaseColumns"/> FROM projects
+        WHERE id IN
+        <foreach item="id" collection="ids" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <insert id="insert" useGeneratedKeys="false">
+        INSERT INTO projects (id, employee_id, name, role, start_date, end_date, status)
+        VALUES (#{id}, #{employeeId}, #{name}, #{role}, #{startDate}, #{endDate}, #{status})
+    </insert>
+
+    <update id="update">
+        UPDATE projects SET
+            employee_id = #{employeeId},
+            name        = #{name},
+            role        = #{role},
+            start_date  = #{startDate},
+            end_date    = #{endDate},
+            status      = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM projects WHERE id = #{id}
+    </delete>
+
+    <delete id="deleteByEmployeeId">
+        DELETE FROM projects WHERE employee_id = #{employeeId}
+    </delete>
+
+    <delete id="deleteByNameIgnoreCase">
+        DELETE FROM projects WHERE LOWER(name) = LOWER(#{name})
+    </delete>
+
+    <update id="updateNameByNameIgnoreCase">
+        UPDATE projects SET name = #{newName}
+        WHERE LOWER(name) = LOWER(#{oldName})
+    </update>
+
+    <update id="updateStatusByNameIgnoreCase">
+        UPDATE projects SET status = #{status}
+        WHERE LOWER(name) = LOWER(#{name})
+    </update>
+
+</mapper>

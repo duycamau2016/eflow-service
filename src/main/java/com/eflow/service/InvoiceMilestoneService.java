@@ -4,7 +4,7 @@ import com.eflow.dto.InvoiceMilestoneDTO;
 import com.eflow.entity.InvoiceMilestone;
 import com.eflow.entity.InvoiceMilestone.MilestoneStatus;
 import com.eflow.exception.ResourceNotFoundException;
-import com.eflow.repository.InvoiceMilestoneRepository;
+import com.eflow.mapper.InvoiceMilestoneMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class InvoiceMilestoneService {
 
-    private final InvoiceMilestoneRepository milestoneRepository;
+    private final InvoiceMilestoneMapper milestoneMapper;
 
     // ─────────────────────────────────────────────
     //  READ
@@ -26,7 +26,7 @@ public class InvoiceMilestoneService {
 
     public List<InvoiceMilestoneDTO> findByProject(String projectName) {
         requireNotBlank(projectName, "projectName");
-        return milestoneRepository
+        return milestoneMapper
                 .findByProjectNameIgnoreCaseOrderBySortOrderAsc(projectName)
                 .stream()
                 .map(this::toDTO)
@@ -46,7 +46,9 @@ public class InvoiceMilestoneService {
         if (dto == null) throw new IllegalArgumentException("Dữ liệu không được null");
         requireNotBlank(dto.getProjectName(), "projectName");
         requireNotBlank(dto.getName(), "name");
-        return toDTO(milestoneRepository.save(toEntity(dto)));
+        InvoiceMilestone entity = toEntity(dto);
+        milestoneMapper.insert(entity);
+        return toDTO(entity);
     }
 
     @Transactional
@@ -62,12 +64,14 @@ public class InvoiceMilestoneService {
         existing.setNote(dto.getNote());
         existing.setSortOrder(dto.getSortOrder());
 
-        return toDTO(milestoneRepository.save(existing));
+        milestoneMapper.update(existing);
+        return toDTO(existing);
     }
 
     @Transactional
     public void delete(Long id) {
-        milestoneRepository.delete(getOrThrow(id));
+        getOrThrow(id);
+        milestoneMapper.deleteById(id);
     }
 
     // ─────────────────────────────────────────────
@@ -75,7 +79,7 @@ public class InvoiceMilestoneService {
     // ─────────────────────────────────────────────
 
     private InvoiceMilestone getOrThrow(Long id) {
-        return milestoneRepository.findById(id)
+        return milestoneMapper.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Mốc hóa đơn", "id", id));
     }
 
