@@ -24,7 +24,6 @@ public class EmployeeService {
     private final EmployeeMapper     employeeMapper;
     private final ProjectMapper      projectMapper;
     private final AuditLogService    auditLogService;
-    private final AuditLogService auditLogService;
 
     // ─────────────────────────────────────────────
     //  READ

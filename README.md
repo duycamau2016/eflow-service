@@ -136,11 +136,68 @@ Tất cả response đều theo chuẩn wrapper:
 
 ---
 
+### 📋 Audit Log — `/api/audit-logs`
+
+| Method | Endpoint | Mô tả |
+|--------|----------|---------|
+| `GET` | `/api/audit-logs` | Lịch sử thay đổi (filter: entityType, action, actor, page, size) |
+
+#### Query params
+| Param | Kiểu | Mặc định | Mô tả |
+|-------|------|---------|--------|
+| `entityType` | string | — | Lọc theo loại đối tượng (`EMPLOYEE`, `PROJECT`, ...) |
+| `action` | string | — | Lọc theo thao tác (`CREATE`, `UPDATE`, `DELETE`, `IMPORT`) |
+| `actor` | string | — | Lọc theo tên người thực hiện |
+| `page` | int | `0` | Trang (0-indexed) |
+| `size` | int | `50` | Số bản ghi/trang |
+
+#### Response mẫu
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "action": "CREATE",
+      "entityType": "EMPLOYEE",
+      "entityId": "EMP001",
+      "entityName": "Nguyễn Văn A",
+      "actor": "TIENTTT14",
+      "createdAt": "2026-03-04T14:40:34.225938",
+      "detail": null
+    }
+  ],
+  "total": 1
+}
+```
+
+---
+
 ### 🔐 Auth — `/api/auth`
 
 | Method | Endpoint | Mô tả |
 |--------|----------|---------|
-| `POST` | `/api/auth/login` | Đăng nhập, trả về role (admin/guest) |
+| `POST` | `/api/auth/login` | Đăng nhập, trả về role + department |
+
+#### Tài khoản có sẵn
+| Username | Password | Role | Phòng ban phụ trách |
+|----------|----------|------|---------------------|
+| `TIENTTT14` | `Matkhau1!` | `ADMIN` | — |
+| `DUYHN4` | `Matkhau1!` | `ADMIN` | — |
+| `MGRKYTHUAT` | `Matkhau1!` | `MANAGER` | Kỹ thuật / Engineering |
+| `MGRNHANSU` | `Matkhau1!` | `MANAGER` | Nhân sự / HR |
+| `MGRDUAN` | `Matkhau1!` | `MANAGER` | Quản lý Dự án / PMO |
+
+#### Response đăng nhập
+```json
+{
+  "username": "MGRKYTHUAT",
+  "role": "MANAGER",
+  "department": "Kỹ thuật"
+}
+```
+
+> `department` — chỉ có giá trị với tài khoản MANAGER; Admin trả về `null`.
 
 ---
 
@@ -150,9 +207,12 @@ Tất cả response đều theo chuẩn wrapper:
 src/main/java/com/eflow/
 ├── EFlowServiceApplication.java       # Entry point + @OpenAPIDefinition
 ├── config/
-│   └── CorsConfig.java                # CORS cho Angular dev/prod
+│   ├── CorsConfig.java                # CORS cho Angular dev/prod
+│   ├── RequestContext.java            # ThreadLocal lưu username actor (per-request)
+│   └── ActorFilter.java               # OncePerRequestFilter — đọc X-Username header
 ├── controller/
 │   ├── AuthController.java
+│   ├── AuditLogController.java        # GET /api/audit-logs (Admin only)
 │   ├── DepartmentController.java
 │   ├── EmployeeController.java
 │   ├── InvoiceMilestoneController.java
@@ -160,6 +220,7 @@ src/main/java/com/eflow/
 │   ├── ProjectInfoController.java
 │   └── ProjectPhaseController.java
 ├── service/
+│   ├── AuditLogService.java           # INSERT audit record (REQUIRES_NEW propagation)
 │   ├── DepartmentService.java
 │   ├── EmployeeService.java
 │   ├── InvoiceMilestoneService.java
@@ -167,6 +228,7 @@ src/main/java/com/eflow/
 │   ├── ProjectPhaseService.java
 │   └── ProjectService.java
 ├── mapper/                            # MyBatis @Mapper interfaces
+│   ├── AuditLogMapper.java
 │   ├── DepartmentMapper.java
 │   ├── EmployeeMapper.java
 │   ├── InvoiceMilestoneMapper.java
@@ -174,6 +236,7 @@ src/main/java/com/eflow/
 │   ├── ProjectMapper.java
 │   └── ProjectPhaseMapper.java
 ├── entity/
+│   ├── AuditLog.java
 │   ├── Department.java
 │   ├── Employee.java
 │   ├── InvoiceMilestone.java
@@ -182,9 +245,11 @@ src/main/java/com/eflow/
 │   └── ProjectPhase.java
 ├── dto/
 │   ├── ApiResponse.java               # Generic response wrapper
+│   ├── AuditLogDTO.java               # DTO lịch sử thay đổi
 │   ├── DepartmentDTO.java
 │   ├── EmployeeDTO.java
 │   ├── InvoiceMilestoneDTO.java
+│   ├── LoginResponseDTO.java          # username + role + department
 │   ├── OrgNodeDTO.java
 │   ├── ProjectDTO.java
 │   ├── ProjectInfoDTO.java
@@ -200,8 +265,10 @@ src/main/resources/
 ├── db/migration/
 │   ├── V1__init_schema.sql            # employees, projects
 │   ├── V2__add_project_finance_tables.sql  # project_info, invoice_milestone, project_phase
-│   └── V3__add_departments_table.sql  # departments
+│   ├── V3__add_departments_table.sql  # departments
+│   └── V4__add_audit_logs_table.sql   # audit_logs (4 indexes)
 └── mapper/                            # MyBatis XML
+    ├── AuditLogMapper.xml
     ├── DepartmentMapper.xml
     ├── EmployeeMapper.xml
     ├── InvoiceMilestoneMapper.xml
@@ -242,8 +309,7 @@ spring.datasource.password=...
 |---------|------|---------|
 | V1 | `V1__init_schema.sql` | `employees`, `projects` |
 | V2 | `V2__add_project_finance_tables.sql` | `project_info`, `invoice_milestone`, `project_phase` |
-| V3 | `V3__add_departments_table.sql` | `departments` (seed 12 PB mặc định) |
-
+| V3 | `V3__add_departments_table.sql` | `departments` (seed 12 PB mặc định) || V4 | `V4__add_audit_logs_table.sql` | `audit_logs` (4 indexes: actor, entityType, action, createdAt) |
 ---
 
 ## 📖 Swagger UI
@@ -278,7 +344,7 @@ Documentation sinh tự động từ `springdoc-openapi-starter-webmvc-ui 2.3.0`
 ### Yêu cầu
 | Công cụ | Phiên bản |
 |---------|----------|
-| Java    | 17 trở lên |
+| Java    | 21 trở lên |
 | Maven   | 3.8 trở lên |
 
 ### Chạy development
@@ -511,7 +577,7 @@ File: `src/main/resources/application.properties`
 | Thành phần | Công nghệ |
 |-----------|-----------|
 | Framework | Spring Boot 3.2.3 |
-| Ngôn ngữ | Java 17 |
+| Ngôn ngữ | Java 21 |
 | ORM | Spring Data JPA + Hibernate 6 |
 | Database (dev) | H2 In-Memory |
 | Database (prod) | MySQL 8 |
