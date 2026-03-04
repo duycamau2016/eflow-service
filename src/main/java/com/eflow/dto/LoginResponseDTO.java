@@ -7,7 +7,9 @@ import lombok.Data;
 @AllArgsConstructor
 public class LoginResponseDTO {
     private boolean success;
-    private String username;
-    private String role;
-    private String message;
+    private String  username;
+    private String  role;
+    /** Phòng ban quản lý (chỉ có với role MANAGER) */
+    private String  department;
+    private String  message;
 }

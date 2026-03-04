@@ -21,8 +21,10 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class EmployeeService {
 
-    private final EmployeeMapper employeeMapper;
-    private final ProjectMapper projectMapper;
+    private final EmployeeMapper     employeeMapper;
+    private final ProjectMapper      projectMapper;
+    private final AuditLogService    auditLogService;
+    private final AuditLogService auditLogService;
 
     // ─────────────────────────────────────────────
     //  READ
@@ -114,6 +116,7 @@ public class EmployeeService {
         entity.setLevel(computeLevel(dto.getManagerId()));
 
         employeeMapper.insert(entity);
+        auditLogService.log("CREATE", "EMPLOYEE", entity.getId(), entity.getName(), null);
         return toDTO(entity, false);
     }
 
@@ -146,6 +149,7 @@ public class EmployeeService {
         existing.setJoinDate(dto.getJoinDate());
         existing.setLevel(computeLevel(dto.getManagerId()));
         employeeMapper.update(existing);
+        auditLogService.log("UPDATE", "EMPLOYEE", existing.getId(), existing.getName(), null);
         existing.setProjects(projectMapper.findByEmployeeId(id));
         return toDTO(existing, true);
     }
@@ -161,6 +165,7 @@ public class EmployeeService {
         subordinates.forEach(sub -> employeeMapper.updateManagerId(sub.getId(), emp.getManagerId()));
 
         employeeMapper.deleteById(id);
+        auditLogService.log("DELETE", "EMPLOYEE", id, emp.getName(), null);
     }
 
     /** Upsert danh sach nhan vien tu file Excel */
@@ -239,6 +244,8 @@ public class EmployeeService {
                 }
             }
         }
+        auditLogService.log("IMPORT", "EMPLOYEE", null,
+                "Import " + dtos.size() + " nhân viên", null);
     }
 
     // ─────────────────────────────────────────────

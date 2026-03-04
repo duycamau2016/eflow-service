@@ -19,8 +19,9 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class ProjectService {
 
-    private final ProjectMapper projectMapper;
-    private final EmployeeMapper employeeMapper;
+    private final ProjectMapper   projectMapper;
+    private final EmployeeMapper  employeeMapper;
+    private final AuditLogService auditLogService;
 
     // ─────────────────────────────────────────────
     //  READ
@@ -82,6 +83,8 @@ public class ProjectService {
                 ? dto.getId()
                 : UUID.randomUUID().toString());
         projectMapper.insert(project);
+        auditLogService.log("CREATE", "PROJECT", project.getId(), project.getName(),
+                "employeeId=" + project.getEmployeeId());
         return toDTO(project);
     }
 
@@ -104,6 +107,7 @@ public class ProjectService {
         existing.setEndDate(dto.getEndDate());
         existing.setStatus(dto.getStatus());
         projectMapper.update(existing);
+        auditLogService.log("UPDATE", "PROJECT", existing.getId(), existing.getName(), null);
         return toDTO(existing);
     }
 
@@ -111,8 +115,9 @@ public class ProjectService {
     @Transactional
     public void delete(String id) {
         requireNotBlank(id, "id");
-        getOrThrow(id);
+        Project p = getOrThrow(id);
         projectMapper.deleteById(id);
+        auditLogService.log("DELETE", "PROJECT", id, p.getName(), null);
     }
 
     /** Xoá tất cả dự án của nhân viên */
@@ -153,6 +158,8 @@ public class ProjectService {
             throw new ResourceNotFoundException("Dự án", "name", oldName);
         }
         projectMapper.updateNameByNameIgnoreCase(oldName, newName.trim());
+        auditLogService.log("UPDATE", "PROJECT", null, newName.trim(),
+                "Đổi tên từ '" + oldName + "'");
     }
 
     /** Cập nhật trạng thái dự án độc lập */

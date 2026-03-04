@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.eflow.mapper.AuditLogMapper">
+
+  <resultMap id="AuditLogRM" type="com.eflow.entity.AuditLog">
+    <id     property="id"         column="id"/>
+    <result property="action"     column="action"/>
+    <result property="entityType" column="entity_type"/>
+    <result property="entityId"   column="entity_id"/>
+    <result property="entityName" column="entity_name"/>
+    <result property="actor"      column="actor"/>
+    <result property="createdAt"  column="created_at"/>
+    <result property="detail"     column="detail"/>
+  </resultMap>
+
+  <!-- INSERT -->
+  <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO audit_logs (action, entity_type, entity_id, entity_name, actor, detail)
+    VALUES (#{action}, #{entityType}, #{entityId}, #{entityName}, #{actor}, #{detail})
+  </insert>
+
+  <!-- QUERY với filter tuỳ chọn -->
+  <select id="findWithFilters" resultMap="AuditLogRM">
+    SELECT * FROM audit_logs
+    <where>
+      <if test="entityType != null and entityType != ''">
+        AND entity_type = #{entityType}
+      </if>
+      <if test="action != null and action != ''">
+        AND action = #{action}
+      </if>
+      <if test="actor != null and actor != ''">
+        AND LOWER(actor) LIKE '%' || LOWER(#{actor}) || '%'
+      </if>
+    </where>
+    ORDER BY created_at DESC
+    LIMIT #{limit} OFFSET #{offset}
+  </select>
+
+  <!-- COUNT -->
+  <select id="countWithFilters" resultType="int">
+    SELECT COUNT(*) FROM audit_logs
+    <where>
+      <if test="entityType != null and entityType != ''">
+        AND entity_type = #{entityType}
+      </if>
+      <if test="action != null and action != ''">
+        AND action = #{action}
+      </if>
+      <if test="actor != null and actor != ''">
+        AND LOWER(actor) LIKE '%' || LOWER(#{actor}) || '%'
+      </if>
+    </where>
+  </select>
+
+</mapper>

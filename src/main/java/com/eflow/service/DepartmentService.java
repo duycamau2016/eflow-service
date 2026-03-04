@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 public class DepartmentService {
 
     private final DepartmentMapper departmentMapper;
+    private final AuditLogService  auditLogService;
 
     // ─────────────────────────────────────────────
     //  READ
@@ -48,6 +49,8 @@ public class DepartmentService {
                 .sortOrder(nextOrder)
                 .build();
         departmentMapper.insert(entity);
+        auditLogService.log("CREATE", "DEPARTMENT",
+                String.valueOf(entity.getId()), name, null);
         return toDTO(entity);
     }
 
@@ -67,14 +70,17 @@ public class DepartmentService {
 
         existing.setName(newName);
         departmentMapper.update(existing);
+        auditLogService.log("UPDATE", "DEPARTMENT",
+                String.valueOf(id), newName, null);
         return toDTO(existing);
     }
 
     @Transactional
     public void delete(Long id) {
-        departmentMapper.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Phòng ban", "id", id));
+        Department d = departmentMapper.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Ph\u00f2ng ban", "id", id));
         departmentMapper.deleteById(id);
+        auditLogService.log("DELETE", "DEPARTMENT", String.valueOf(id), d.getName(), null);
     }
 
     /**
