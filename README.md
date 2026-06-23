@@ -208,13 +208,14 @@ src/main/java/com/eflow/
 ├── EFlowServiceApplication.java       # Entry point + @OpenAPIDefinition
 ├── config/
 │   ├── CorsConfig.java                # CORS cho Angular dev/prod
-│   ├── RequestContext.java            # ThreadLocal lưu username actor (per-request)
-│   └── ActorFilter.java               # OncePerRequestFilter — đọc X-Username header
+│   ├── UserRegistry.java              # @Component tập trung user store (password/role/dept)
+│   ├── RequestContext.java            # ThreadLocal lưu actor + role + managerDepartment
+│   └── ActorFilter.java               # OncePerRequestFilter — đọc X-Username, populate context
 ├── controller/
 │   ├── AuthController.java
 │   ├── AuditLogController.java        # GET /api/audit-logs (Admin only)
 │   ├── DepartmentController.java
-│   ├── EmployeeController.java
+│   ├── EmployeeController.java        # Guard: MANAGER bị chặn POST/DELETE; PUT chỉ được nếu đúng dept
 │   ├── InvoiceMilestoneController.java
 │   ├── ProjectController.java
 │   ├── ProjectInfoController.java
